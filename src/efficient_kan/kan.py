@@ -38,7 +38,7 @@ class KANLinear(torch.nn.Module):
         self.base_weight = torch.nn.Parameter(torch.Tensor(out_features, in_features))
         self.spline_weight = torch.nn.Parameter(
             torch.Tensor(out_features, in_features, grid_size + spline_order)
-        )
+        ) # [3, 8, 3 + 3]
         if enable_standalone_scale_spline:
             self.spline_scaler = torch.nn.Parameter(
                 torch.Tensor(out_features, in_features)
@@ -84,6 +84,7 @@ class KANLinear(torch.nn.Module):
 
         Args:
             x (torch.Tensor): Input tensor of shape (batch_size, in_features).
+            (64, 784) -> (64, 784, 6)
 
         Returns:
             torch.Tensor: B-spline bases tensor of shape (batch_size, in_features, grid_size + spline_order).
@@ -158,13 +159,26 @@ class KANLinear(torch.nn.Module):
         original_shape = x.shape
         x = x.view(-1, self.in_features)
 
+
+        
         base_output = F.linear(self.base_activation(x), self.base_weight)
         spline_output = F.linear(
             self.b_splines(x).view(x.size(0), -1),
             self.scaled_spline_weight.view(self.out_features, -1),
-        )
+        ) 
         output = base_output + spline_output
-        
+
+        # base_weight_transposed = self.base_weight.t() 
+        # base = self.base_activation(x).unsqueeze(2) * base_weight_transposed.unsqueeze(0) # (batch, in, out)
+
+        # scaled_spline_weight_transposed = self.scaled_spline_weight.view(self.out_features, -1).t() 
+        # spline = self.b_splines(x).view(x.size(0), -1).unsqueeze(2) * scaled_spline_weight_transposed.unsqueeze(0) # (batch, in, out)
+
+        # spline_reshaped = spline.view(spline.size(0), spline.size(1) // 8, 8, spline.size(2))  # [1, 784, 8, 64]
+        # spline_summed = spline_reshaped.sum(dim=2)  # [1, 784, 64]
+        # y = base + spline_summed
+        # output = torch.sum(y, dim=1)  # [batch_size, out_features]
+
         output = output.view(*original_shape[:-1], self.out_features)
         return output
 
@@ -278,11 +292,7 @@ class KAN(torch.nn.Module):
         for layer in self.layers:
             if update_grid:
                 layer.update_grid(x)
-            try:
-                x = layer(x)
-            except:
-                print(f"{x.shape}")
-                raise ValueError
+            x = layer(x)
         return x
 
     def regularization_loss(self, regularize_activation=1.0, regularize_entropy=1.0):
