@@ -1,0 +1,22 @@
+{
+    "model_name": "resnet18",
+
+    "learning_rate": 0.1,
+    "dt_learning_rate": 0.001,
+    "schedule": [60, 90],
+    "dt_schedule": [80,110],
+    "gamma": 0.1,
+    "batch_size": 256,
+    "num_epochs": 10,
+    "num_workers": 4,
+    "augmentation": 1,
+    "cuda": 1,
+
+    "dataset": "cifar10",
+
+    "adversarial_model": "resnet18",
+    "adversarial_resume": "experiments/CIFAR10/baseline/resnet18/best_model.tar",
+    "save_path": "experiments/CIFAR10/Basic_resnet18/resnet18_wm",
+    "temperature": 4,
+    "weight": 0.1
+}

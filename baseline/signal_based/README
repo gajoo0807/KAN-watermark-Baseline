@@ -1,0 +1,19 @@
+### 1. Generate models 
+
+#### Train a normal teacher network   
+
+~~~
+python -m baseline.signal_based.train_from_scratch
+~~~
+
+
+#### Train a watermarked network(USP)
+~~~
+python -m baseline.signal_based.train_USP --ver [ver]
+~~~
+
+
+### 2. Finetune
+
+
+### 3. Pruning
