@@ -1,0 +1,9 @@
+{
+    "finetune": true,
+    "prune": true,
+    "prune_rate": 0.8,
+    "finetune_epochs": 10,
+    "learning_rate": 0.01,
+    "name": "prune_with_retrain",
+    "dt_learning_rate": 0.001
+}

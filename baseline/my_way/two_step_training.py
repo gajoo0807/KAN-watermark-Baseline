@@ -22,9 +22,19 @@ from src.efficient_kan import KAN
 
 # from data_loader import fetch_dataloader, fetch_dataloader_custom
 
+# ************************** parameters **************************
+parser = argparse.ArgumentParser()
+parser.add_argument('--save_path', default='./baseline/my_way', type=str)
+parser.add_argument('--resume', default=None, type=str)
+parser.add_argument('--gpu_id', default=0, type=int, nargs='+', help='id(s) for CUDA_VISIBLE_DEVICES')
+parser.add_argument('--ver', default='1', type=str)
+args = parser.parse_args()
+
+device_ids = args.gpu_id
+
 
 # ************************** random seed **************************
-seed = 0
+seed = int(args.ver)
 
 np.random.seed(seed)
 torch.manual_seed(seed)
@@ -33,15 +43,7 @@ torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-# ************************** parameters **************************
-parser = argparse.ArgumentParser()
-parser.add_argument('--save_path', default='./baseline/my_way', type=str)
-parser.add_argument('--resume', default=None, type=str)
-parser.add_argument('--gpu_id', default=[0], type=int, nargs='+', help='id(s) for CUDA_VISIBLE_DEVICES')
-parser.add_argument('--ver', default='1', type=str)
-args = parser.parse_args()
 
-device_ids = args.gpu_id
 # torch.cuda.set_device(device_ids[0])
 
 
@@ -155,7 +157,8 @@ if __name__ == "__main__":
     isExist = os.path.exists(os.path.join(args.save_path, args.ver))
     if not isExist:
         os.makedirs(os.path.join(args.save_path, args.ver))
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    device = torch.device(f"cuda:{device_ids[0]}" if torch.cuda.is_available() else "cpu")
 
     # ************************** set log **************************
     logger_file = os.path.join(args.save_path + '/' + args.ver, 'two_step_training.log')
@@ -179,7 +182,6 @@ if __name__ == "__main__":
     trainloader, valloader = fetch_mnist_dataloader()
     KAN_arch = [28 * 28, 64, 10]
     model = KAN(KAN_arch)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     logging.info(f'Model architecture {KAN_arch}')
 
