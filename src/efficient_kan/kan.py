@@ -33,9 +33,11 @@ class KANLinear(torch.nn.Module):
             .expand(in_features, -1)
             .contiguous()
         )
-        self.register_buffer("grid", grid)
-
+        self.register_buffer("grid", grid) # 註冊一個不可訓練的緩衝區，用於保存不需反向傳播的參數
         self.base_weight = torch.nn.Parameter(torch.Tensor(out_features, in_features))
+
+        self.mask = torch.nn.Parameter(torch.ones(in_features, out_features)).requires_grad_(False)
+
         self.spline_weight = torch.nn.Parameter(
             torch.Tensor(out_features, in_features, grid_size + spline_order)
         ) # [3, 8, 3 + 3]
@@ -112,6 +114,7 @@ class KANLinear(torch.nn.Module):
             self.in_features,
             self.grid_size + self.spline_order,
         )
+        # 每一個input node, 有grid_size + spline_order個basis spline
         return bases.contiguous()
 
     def curve2coeff(self, x: torch.Tensor, y: torch.Tensor):
@@ -161,25 +164,38 @@ class KANLinear(torch.nn.Module):
 
 
         
-        base_output = F.linear(self.base_activation(x), self.base_weight)
-        spline_output = F.linear(
-            self.b_splines(x).view(x.size(0), -1),
-            self.scaled_spline_weight.view(self.out_features, -1),
-        ) 
-        output = base_output + spline_output
+        # base_output = F.linear(self.base_activation(x), self.base_weight)
+        # spline_output = F.linear(
+        #     self.b_splines(x).view(x.size(0), -1),
+        #     self.scaled_spline_weight.view(self.out_features, -1),
+        # ) 
+        # output = base_output + spline_output
 
-        # base_weight_transposed = self.base_weight.t() 
-        # base = self.base_activation(x).unsqueeze(2) * base_weight_transposed.unsqueeze(0) # (batch, in, out)
+        base_weight_transposed = self.base_weight.t() 
+        base = self.base_activation(x).unsqueeze(2) * base_weight_transposed.unsqueeze(0) # (batch, in, out)
 
-        # scaled_spline_weight_transposed = self.scaled_spline_weight.view(self.out_features, -1).t() 
-        # spline = self.b_splines(x).view(x.size(0), -1).unsqueeze(2) * scaled_spline_weight_transposed.unsqueeze(0) # (batch, in, out)
+        scaled_spline_weight_transposed = self.scaled_spline_weight.view(self.out_features, -1).t() # [784 * 8, 64] (in_features * (grid_size + spline_order), out_features)
+        spline = self.b_splines(x).view(x.size(0), -1).unsqueeze(2) * scaled_spline_weight_transposed.unsqueeze(0) # [1, 784 * 8, 64]
+        # 前者：透過grid計算出來的spline basis, size: [batch, input, grid_size + spline_order], 後者：spline weight, size: [in_features * (grid_size + spline_order), out_features]
 
-        # spline_reshaped = spline.view(spline.size(0), spline.size(1) // 8, 8, spline.size(2))  # [1, 784, 8, 64]
-        # spline_summed = spline_reshaped.sum(dim=2)  # [1, 784, 64]
-        # y = base + spline_summed
-        # output = torch.sum(y, dim=1)  # [batch_size, out_features]
+        spline_reshaped = spline.view(spline.size(0), spline.size(1) // 8, 8, spline.size(2))  # [1, 784, 8, 64]
+        spline_summed = spline_reshaped.sum(dim=2)  # [1, 784, 64]
+        y = base + spline_summed
+        # important score
+        output_range = torch.mean(torch.abs(y), dim=0)  # [784, 64]
+        input_range = self.grid[:, 0] - self.grid[:, -1] + 1e-4  # [784]
+        input_range = input_range.unsqueeze(1)  # [784, 1]
+        self.important_score = output_range / input_range  # [784, 64]
 
-        output = output.view(*original_shape[:-1], self.out_features)
+        # transposed_mask = self.mask.t()  # [784, 64]
+        # print(f"{self.mask.shape=}")
+        
+        expanded_mask = self.mask.unsqueeze(0).expand(y.size(0), -1, -1)
+        # print(f"{expanded_mask.shape=}, {y.shape=}")
+        y = y * expanded_mask
+
+        output = torch.sum(y, dim=1)  # [batch_size, out_features]
+        output = output.view(*original_shape[:-1], self.out_features) 
         return output
 
     @torch.no_grad()
@@ -287,6 +303,9 @@ class KAN(torch.nn.Module):
                     grid_range=grid_range,
                 )
             )
+
+    def forward_layer_0(self, x: torch.Tensor):
+        return self.layers[0](x)
 
     def forward(self, x: torch.Tensor, update_grid=False):
         for layer in self.layers:

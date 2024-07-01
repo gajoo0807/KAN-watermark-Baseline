@@ -120,6 +120,6 @@ def fetch_mnist_dataloader():
     valset = torchvision.datasets.MNIST(
         root="./data", train=False, download=True, transform=transform
     )
-    trainloader = DataLoader(trainset, batch_size=1, shuffle=True)
-    valloader = DataLoader(valset, batch_size=1, shuffle=False)
+    trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
+    valloader = DataLoader(valset, batch_size=32, shuffle=False)
     return trainloader, valloader

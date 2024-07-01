@@ -262,6 +262,7 @@ def train_and_eval_kd_adv(model, model_ad, detector, optim, dt_optim, train_load
 
         logging.info('- So far best epoch: {}, best acc: {:05.3f}'.format(best_epo, best_val_acc))
         dt_save_name = os.path.join(args.save_path + '/' + args.ver, 'detector.pt')
+        
         torch.save(detector.state_dict(), dt_save_name)
         
 

@@ -1,0 +1,13 @@
+{
+    "learning_rate": 0.1,
+
+    "embedding_key": {
+        "l": 0,
+        "i": 0, 
+        "watermark_func": "cos", 
+        "j": 0, 
+        "amplitude": 5, 
+        "phase": 5 , 
+        "frequency": 8
+    }
+}
