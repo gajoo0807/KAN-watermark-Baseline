@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from utils.utils import set_logger, fetch_mnist_dataloader, Params, RunningAverage
 from src.efficient_kan import KAN
 
+from baseline.my_way.verification import validate_model
 # from data_loader import fetch_dataloader, fetch_dataloader_custom
 
 # ************************** parameters **************************
@@ -71,6 +72,26 @@ def validate_model(model, key_samples_path, device):
 
     logging.info(f'MSE between model outputs and key outputs: {mse.item()}')
 
+def compute_test(key_image):
+    # 检查 key_image 中是否包含非 -1 的数值
+    contains_non_minus_one = (key_image != -1).any()
+
+    # 计算非 -1 数值的个数
+    non_minus_one_count = (key_image != -1).sum().item()
+
+    # 计算 -1 数值的个数
+    minus_one_count = (key_image == -1).sum().item()
+
+    # 计算非 -1 数值与 -1 数值的比例
+    if minus_one_count == 0:
+        ratio = float('inf')  # 避免除以 0
+    else:
+        ratio = non_minus_one_count / minus_one_count
+
+    print(f"Contains non -1 values: {contains_non_minus_one}")
+    print(f"Non -1 values count: {non_minus_one_count}")
+    print(f"-1 values count: {minus_one_count}")
+    print(f"Ratio of non -1 values to -1 values: {ratio}")
 
 
 def train_and_eval(model, optimizer, criterion, trainloader, valloader, params, optimizer_layer_0):
@@ -95,11 +116,15 @@ def train_and_eval(model, optimizer, criterion, trainloader, valloader, params, 
                 pbar.set_postfix(loss=loss.item(), accuracy=accuracy.item(), lr=optimizer.param_groups[0]['lr'])
 
                 # Two Step Training
-                output = model.forward_layer_0(images)
-                embedding_signal = amplitude * watermark_func(frequency * output + phase)
-                loss_signal = torch.mean(embedding_signal ** 2)
-                loss_signal.backward()
-                optimizer_layer_0.step()
+                # output = model.forward_layer_0(images)
+                # embedding_signal = amplitude * watermark_func(frequency * output + phase)
+                # loss_signal = torch.mean(embedding_signal ** 2)
+                # print(f"{output.shape=}")
+                # print(f"{embedding_signal.shape=}")
+
+                # optimizer_layer_0.zero_grad()
+                # loss_signal.backward()
+                # optimizer_layer_0.step()
 
         # Validation
         model.eval()
@@ -122,9 +147,21 @@ def train_and_eval(model, optimizer, criterion, trainloader, valloader, params, 
             best_val_acc = val_acc
             logging.info('- New best model ')
             # save best model
-            save_name = os.path.join(args.save_path, args.ver , 'two_step_model.pth')
+            save_name = os.path.join(args.save_path, 'initial', args.ver , 'two_step_model.pth')
             torch.save({'epoch': epoch + 1, 'state_dict': model.state_dict()},
                 save_name)
+            with torch.no_grad():
+                key_images, _ = next(iter(trainloader))
+                key_images = key_images.view(-1, 28 * 28).to(device)
+                key_output = model.forward_layer_0(key_images)
+                print(f"{key_images.shape=}, {key_output.shape=}")
+                key_samples = [(key_images.cpu(), key_output.cpu())]
+            # Save key samples
+            save_name = os.path.join(args.save_path,'initial',  args.ver, 'key_samples.pth')
+            torch.save(key_samples, save_name)
+            logging.info(f'Key samples saved to {save_name}')
+            
+
 
         # Update learning rate
         scheduler.step()
@@ -137,31 +174,21 @@ def train_and_eval(model, optimizer, criterion, trainloader, valloader, params, 
     
     # 儲存驗證key sample
     model.eval()
-    with torch.no_grad():
-        key_images, _ = next(iter(trainloader))
-        key_images = key_images.view(-1, 28 * 28).to(device)
-        key_output = model.forward_layer_0(key_images)
-        key_samples = [(key_images.cpu(), key_output.cpu())]
-    # Save key samples
-    save_name = os.path.join(args.save_path, args.ver, 'key_samples.pth')
-    torch.save(key_samples, save_name)
-    logging.info(f'Key samples saved to {save_name}')
 
 
-
-    
-
+    # mse_loss = validate_model(model, save_name, device)
+    # logging.info(f"Test MSE loss: {mse_loss}")
 
 
 if __name__ == "__main__":
-    isExist = os.path.exists(os.path.join(args.save_path, args.ver))
+    isExist = os.path.exists(os.path.join(args.save_path, 'initial', args.ver))
     if not isExist:
-        os.makedirs(os.path.join(args.save_path, args.ver))
+        os.makedirs(os.path.join(args.save_path, 'initial', args.ver))
     
     device = torch.device(f"cuda:{device_ids[0]}" if torch.cuda.is_available() else "cpu")
 
     # ************************** set log **************************
-    logger_file = os.path.join(args.save_path + '/' + args.ver, 'two_step_training.log')
+    logger_file = os.path.join(args.save_path + '/initial/' + args.ver, 'two_step_training.log')
     if os.path.exists(logger_file):
         with open(logger_file, 'w') as file:
             file.truncate(0)
@@ -187,7 +214,7 @@ if __name__ == "__main__":
 
 
     # Define optimizer
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=0.01, weight_decay=1e-4)
     # Define learning rate scheduler
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.8)
     # Define loss

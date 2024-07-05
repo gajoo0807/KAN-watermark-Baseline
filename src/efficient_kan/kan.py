@@ -198,6 +198,28 @@ class KANLinear(torch.nn.Module):
         output = output.view(*original_shape[:-1], self.out_features) 
         return output
 
+
+    def forward_neuron_value(self, x: torch.Tensor):
+        assert x.size(-1) == self.in_features
+        original_shape = x.shape
+        x = x.view(-1, self.in_features)
+
+        base_weight_transposed = self.base_weight.t() 
+        base = self.base_activation(x).unsqueeze(2) * base_weight_transposed.unsqueeze(0) # (batch, in, out)
+        scaled_spline_weight_transposed = self.scaled_spline_weight.view(self.out_features, -1).t() # [784 * 8, 64] (in_features * (grid_size + spline_order), out_features)
+        spline = self.b_splines(x).view(x.size(0), -1).unsqueeze(2) * scaled_spline_weight_transposed.unsqueeze(0) # [1, 784 * 8, 64]
+        # 前者：透過grid計算出來的spline basis, size: [batch, input, grid_size + spline_order], 後者：spline weight, size: [in_features * (grid_size + spline_order), out_features]
+
+        spline_reshaped = spline.view(spline.size(0), spline.size(1) // 8, 8, spline.size(2))  # [1, 784, 8, 64]
+        spline_summed = spline_reshaped.sum(dim=2)  # [1, 784, 64]
+        y = base + spline_summed
+
+
+        expanded_mask = self.mask.unsqueeze(0).expand(y.size(0), -1, -1)
+
+        y = y * expanded_mask
+        return y # [1, 784, 64]
+
     @torch.no_grad()
     def update_grid(self, x: torch.Tensor, margin=0.01):
         assert x.dim() == 2 and x.size(1) == self.in_features
@@ -305,7 +327,11 @@ class KAN(torch.nn.Module):
             )
 
     def forward_layer_0(self, x: torch.Tensor):
-        return self.layers[0](x)
+        '''
+        input: x [batch, input_size]
+        output [batch, input, output_size]
+        '''
+        return self.layers[0].forward_neuron_value(x)
 
     def forward(self, x: torch.Tensor, update_grid=False):
         for layer in self.layers:

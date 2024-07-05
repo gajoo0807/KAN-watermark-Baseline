@@ -3,7 +3,7 @@
     "prune": false,
     "prune_rate": 0.8,
     "finetune_epochs": 10,
-    "learning_rate": 0.001,
+    "learning_rate": 1e-4,
     "name": "ft_small_lr",
     "dt_learning_rate": 0.001
 }

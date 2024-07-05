@@ -51,4 +51,21 @@ python -m baseline.signal_based.finetune_prune --ver [A] --save_path [XXX] --gpu
 - [A] specifies the ver of the model you want to attack
 - [K] specifies gpu id you use
 
+2. Trigger Based Method
+
+### Train margin based
+~~~
+python -m baseline.trigger_set.trigger_set --ver [A] --gpu_id [K]
+~~~
+
+### Verification
+~~~
+python -m baseline.trigger_set.verification --clean_model --ver [A]
+~~~
+
+### Finetune or Pruning
+~~~
+python -m baseline.trigger_set.finetune_prune  --save_path [XXX] --ver [A]
+~~~
+python -m baseline.trigger_set.finetune_prune  `--save_path ./baseline/trigger_set/attack/finetune/large_lr --ver 1`
 

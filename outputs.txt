@@ -1,0 +1,96 @@
+Model 1
+Best valid nat acc: 0.9665
+Best valid query acc: 1.0000
+Model 2
+Best valid nat acc: 0.9650
+Best valid query acc: 1.0000
+Model 3
+Best valid nat acc: 0.9657
+Best valid query acc: 1.0000
+Model 4
+Best valid nat acc: 0.9664
+Best valid query acc: 1.0000
+Model 5
+Best valid nat acc: 0.9659
+Best valid query acc: 1.0000
+Model 6
+Best valid nat acc: 0.9660
+Best valid query acc: 1.0000
+Model 7
+Best valid nat acc: 0.9656
+Best valid query acc: 1.0000
+Model 8
+Best valid nat acc: 0.9666
+Best valid query acc: 1.0000
+Model 9
+Best valid nat acc: 0.9671
+Best valid query acc: 1.0000
+Model 10
+Best valid nat acc: 0.9628
+Best valid query acc: 1.0000
+Model 11
+Best valid nat acc: 0.9640
+Best valid query acc: 1.0000
+Model 12
+Best valid nat acc: 0.9644
+Best valid query acc: 1.0000
+Model 13
+Best valid nat acc: 0.9684
+Best valid query acc: 1.0000
+Model 14
+Best valid nat acc: 0.9647
+Best valid query acc: 1.0000
+Model 15
+Best valid nat acc: 0.9670
+Best valid query acc: 1.0000
+Model 16
+Best valid nat acc: 0.9671
+Best valid query acc: 1.0000
+Model 17
+Best valid nat acc: 0.9682
+Best valid query acc: 1.0000
+Model 18
+Best valid nat acc: 0.9647
+Best valid query acc: 1.0000
+Model 19
+Best valid nat acc: 0.9647
+Best valid query acc: 1.0000
+Model 20
+Best valid nat acc: 0.9671
+Best valid query acc: 1.0000
+Model 21
+Best valid nat acc: 0.9643
+Best valid query acc: 1.0000
+Model 22
+Best valid nat acc: 0.9642
+Best valid query acc: 1.0000
+Model 23
+Best valid nat acc: 0.9659
+Best valid query acc: 1.0000
+Model 24
+Best valid nat acc: 0.9669
+Best valid query acc: 1.0000
+Model 25
+Best valid nat acc: 0.9694
+Best valid query acc: 1.0000
+Model 26
+Best valid nat acc: 0.9643
+Best valid query acc: 1.0000
+Model 27
+Best valid nat acc: 0.9667
+Best valid query acc: 1.0000
+Model 28
+Best valid nat acc: 0.9675
+Best valid query acc: 1.0000
+Model 29
+Best valid nat acc: 0.9663
+Best valid query acc: 1.0000
+Model 30
+Best valid nat acc: 0.9667
+Best valid query acc: 1.0000
+Model 1
+Best valid nat acc: 0.9670
+Best valid query acc: 0.6096
+Model 1
+Best valid nat acc: 0.9724
+Best valid query acc: 0.2432

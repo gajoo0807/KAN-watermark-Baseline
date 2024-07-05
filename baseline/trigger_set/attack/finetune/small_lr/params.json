@@ -2,8 +2,8 @@
     "finetune": true,
     "prune": false,
     "prune_rate": 0.8,
-    "finetune_epochs": 3,
-    "learning_rate": 0.01,
-    "name": "ft_large_lr",
+    "finetune_epochs": 10,
+    "learning_rate": 0.001,
+    "name": "ft_small_lr",
     "dt_learning_rate": 0.001
 }

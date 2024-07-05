@@ -14,9 +14,29 @@ import numpy as np
 
 from utils.utils import set_logger, fetch_mnist_dataloader, Params, RunningAverage
 from src.efficient_kan import KAN
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+
+from kaconv.convkan import ConvKAN
+from kaconv.kaconv import FastKANConvLayer
+from torch.nn import Conv2d, BatchNorm2d
+import torchvision
 
 
 import random
+
+transform_train = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomCrop(32, padding=4),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+])
+
+transform_val = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+])
+
 
 # ************************** detector framework **************************
 
@@ -124,7 +144,7 @@ def train_epoch_kd_adv(model, model_ad, detector, optim, dt_optim, data_loader, 
 
     with tqdm(total=len(data_loader)) as t:  # Use tqdm for progress bar
         for i, (train_batch, labels_batch) in enumerate(data_loader):
-            train_batch, labels_batch = train_batch.view(-1, 28 * 28).cuda(), labels_batch.cuda()
+            train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
             output_tch = model(train_batch)
 
             # teacher loss: CE(output_tch, label)
@@ -146,9 +166,9 @@ def train_epoch_kd_adv(model, model_ad, detector, optim, dt_optim, data_loader, 
             adv_loss = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(output_stu / T, dim=1),
                                       F.softmax(output_tch / T, dim=1)) * (T * T)   # wish to max this item
             
-            # loss = tch_loss - adv_loss * 0.01 + wm_loss + 2  # 原始設置
+            loss = tch_loss - adv_loss * 0.01 + wm_loss + 2  # 原始設置
             
-            loss = tch_loss - adv_loss * 0.01 + 2 # + wm_loss
+            # loss = tch_loss - adv_loss * 0.01 + 2 # + wm_loss
 
 
             # tch_loss : main task loss
@@ -187,7 +207,7 @@ def evaluate(model, model_ad, detector,  loss_fn, data_loader, params):
         # compute metrics over the dataset
         for data_batch, labels_batch in data_loader:
             if params.cuda:
-                data_batch = data_batch.view(-1, 28 * 28).cuda()          # (B,3,32,32)
+                data_batch = data_batch.cuda()          # (B,3,32,32)
                 labels_batch = labels_batch.cuda()      # (B,)
 
             # compute model output
@@ -331,11 +351,24 @@ if __name__ == "__main__":
 
     params.cuda = torch.cuda.is_available() # use GPU if available
 
-    trainloader, valloader = fetch_mnist_dataloader()
-    KAN_arch = [28 * 28, 64, 10]
-    model = KAN(KAN_arch)
+    trainset = torchvision.datasets.CIFAR10(
+        root="./data", train=True, download=True, transform=transform_train
+    )
+    valset = torchvision.datasets.CIFAR10(
+        root="./data", train=False, download=True, transform=transform_val
+    )
+    trainloader = DataLoader(trainset, batch_size=64, shuffle=True)
+    valloader = DataLoader(valset, batch_size=64, shuffle=False)
+    model = nn.Sequential(
+        FastKANConvLayer(3, 32, padding=1, kernel_size=3, stride=1, kan_type="BSpline"),
+        BatchNorm2d(32),
+        FastKANConvLayer(32, 32, padding=1, kernel_size=3, stride=2, kan_type="BSpline"),
+        BatchNorm2d(32),
+        FastKANConvLayer(32, 10, padding=1, kernel_size=3, stride=2, kan_type="BSpline"),
+        nn.AdaptiveAvgPool2d(1),
+        nn.Flatten(),
+    ).cuda()
     model.to(device)
-    logging.info(f'Model architecture {KAN_arch}')
 
     # Define optimizer
     optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -345,7 +378,16 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
 
     # ************************** adversarial model **************************
-    adversarial_model = KAN(KAN_arch)
+    adversarial_model = nn.Sequential(
+        FastKANConvLayer(3, 32, padding=1, kernel_size=3, stride=1, kan_type="BSpline"),
+        BatchNorm2d(32),
+        FastKANConvLayer(32, 32, padding=1, kernel_size=3, stride=2, kan_type="BSpline"),
+        BatchNorm2d(32),
+        FastKANConvLayer(32, 10, padding=1, kernel_size=3, stride=2, kan_type="BSpline"),
+        nn.AdaptiveAvgPool2d(1),
+        nn.Flatten(),
+    ).cuda()
+
     checkpoint = torch.load("baseline/signal_based/scratch/clean_model.pth")
     adversarial_model.load_state_dict(checkpoint['state_dict'])
     adversarial_model.to(device)

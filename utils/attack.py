@@ -20,7 +20,7 @@ from src.efficient_kan import KAN
 
 
 
-def finetune(model, optimizer, criterion, trainloader, valloader, args):
+def finetune(model, optimizer, criterion, trainloader, valloader, args, device):
     '''
     Fine-tune the model
 
@@ -35,16 +35,21 @@ def finetune(model, optimizer, criterion, trainloader, valloader, args):
     Returns:
         model: the fine-tuned model
     '''
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
     best_val_acc = -1
     best_epo = -1
 
     for epoch in range(10):
         # Train
         model.train()
+        
         with tqdm(trainloader) as pbar:
             for i, (images, labels) in enumerate(pbar):
+
                 images = images.view(-1, 28 * 28).to(device)
+                with torch.no_grad():
+                    model_outputs = model.forward_layer_0(images)
+                # print(f"{model_outputs=}")
                 optimizer.zero_grad()
                 output = model(images)
                 loss = criterion(output, labels.to(device))
@@ -88,7 +93,7 @@ def finetune(model, optimizer, criterion, trainloader, valloader, args):
 
 
 
-def prune(model, threshold, valloader, args):
+def prune(model, threshold, valloader, args, criterion, device):
     '''
     Prune the model, mask neurons with small weights
     
@@ -103,11 +108,12 @@ def prune(model, threshold, valloader, args):
     # model forward
     # calculate the importance of each neuron
     # prune the model
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     model.eval()
     with torch.no_grad():
         images, labels = next(iter(valloader))
-        images = images.view(-1, 28 * 28).to("cuda")
+        images = images.view(-1, 28 * 28).to(device)
         output = model(images)
 
     # 根據threshold對model進行prune, 更新model.mask
@@ -124,6 +130,23 @@ def prune(model, threshold, valloader, args):
         
         # Update the mask: set elements with importance score below the threshold to 0
         layer.mask[important_score < threshold_value] = 0
+
+    val_loss, val_acc = 0, 0
+
+    with torch.no_grad():
+        for images, labels in valloader:
+            images = images.view(-1, 28 * 28).to(device)
+            # print(f"{images.device=}, {labels.device=}")
+            output = model(images)
+            val_loss += criterion(output, labels.to(device)).item()
+            val_acc += (
+                (output.argmax(dim=1) == labels.to(device)).float().mean().item()
+            )
+    val_loss /= len(valloader)
+    val_acc /= len(valloader)
+    print(
+        f"After pruning, Val Loss: {val_loss:.5f}, Val Accuracy: {val_acc:.5f}"
+    )
 
     return model
 
